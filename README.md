@@ -54,17 +54,18 @@ RewardsPanel      ─┘                           RewardService         Collect
 
 ## 4. Technology stack
 
-- Java **21** **[confirm]**
+- Java **21**
 - Java Swing (GUI)
-- `java.net.http.HttpClient` (HTTP) and JSON parsing **[confirm: report names Jackson, CRC cards name `MiniJson`]**
-- JUnit 5 (unit tests), JaCoCo (coverage, target ≥ 75%)
+- `java.net.http.HttpClient` (HTTP) and **Jackson** (JSON parsing)
+- JUnit 5 (unit tests), JaCoCo (coverage, build fails below 75% line coverage)
+- Checkstyle (clean-code rules, build fails on any violation)
 - GitHub Actions (CI)
-- Build tool: Maven or Gradle **[confirm]**
+- Build tool: **Maven**
 
 ## 5. External API
 
 - **Service:** OpenStreetMap Nominatim (address lookup)
-- **Endpoint:** `https://nominatim.openstreetmap.org/search` **[confirm exact query used]**
+- **Endpoint:** `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=<url-encoded address>`
 - **Usage policy:** requests are rate limited and send an identifying `User-Agent` header, as the Nominatim usage policy requires
 - **Error handling:** 2xx is parsed and displayed; 404 and 500 map to friendly messages (never a stack trace); if the API is unreachable the last known result is used
 
@@ -76,23 +77,21 @@ RewardsPanel      ─┘                           RewardService         Collect
 
 ### Run the executable JAR
 ```bash
-java -jar cwrm.jar        # [confirm final JAR name]
+java -jar target/cwrm.jar
 ```
 
 ### Build and test from source
+Requires Maven 3.9 or later (IntelliJ IDEA's bundled Maven also works).
 ```bash
 git clone <repository-url>
 cd <repository-folder>
 
-# If Maven [confirm]
-mvn clean package         # compile, run tests, build JAR
+mvn clean verify          # Checkstyle, compile, unit tests, JAR, coverage report and 75% check
 mvn test                  # run unit tests only
-mvn jacoco:report         # coverage report in target/site/jacoco/index.html
-
-# If Gradle [confirm]
-./gradlew build
-./gradlew test jacocoTestReport
+mvn package               # build target/cwrm.jar
+mvn test -Pshow-limitation   # run ONLY the deliberately failing test (expected to fail)
 ```
+The coverage report is written to `target/site/jacoco/index.html`.
 
 ## 7. Testing
 
@@ -101,13 +100,20 @@ mvn jacoco:report         # coverage report in target/site/jacoco/index.html
 - **Integration tests:** five system test cases covering GUI action, successful API call, failed API response, end-to-end logic and edge case (report Section 5.3)
 - **CI:** GitHub Actions runs the build and tests on every pull request to `main`
 
-## 8. Project structure **[confirm against the repo]**
+## 8. Project structure
 
 ```
-src/main/java/...      domain model, services, controller, views, API client
-src/test/java/...      JUnit 5 tests
+src/main/java/cwrm/
+  model/               domain classes (PickupRequest + Builder, Resident, RewardAccount, ...)
+  service/             PickupService, RewardService, reward rules, StatisticsService
+  api/                 Nominatim address lookup (HttpTransport, Jackson)
+  controller/          PickupController, Outcome
+  view/                Swing panels and MainFrame
+  Main.java            entry point and seed data
+src/test/java/cwrm/    JUnit 5 tests (same packages)
+config/checkstyle.xml  clean-code rules
 .github/workflows/     GitHub Actions CI
-docs/                  report diagrams (architecture, UML)
+pom.xml
 README.md
 ```
 
@@ -122,7 +128,7 @@ README.md
 
 ## 10. AI use declaration
 
-Any AI assistance used for code or documentation is declared in Appendix B of the report.
+AI use in the written report is declared in Appendix B of the report.
 
 ## 11. References
 

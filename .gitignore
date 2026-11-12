@@ -1,0 +1,27 @@
+# Maven build output
+target/
+dependency-reduced-pom.xml
+
+# IntelliJ IDEA
+.idea/
+*.iml
+out/
+
+# Eclipse / VS Code
+.classpath
+.project
+.settings/
+.vscode/
+bin/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Local planning notes and AI assistant instructions (not part of the submission).
+# docs/* (not docs/) so single files can be re-included later, e.g. !docs/integration-tests.md
+docs/*
+CLAUDE.md
