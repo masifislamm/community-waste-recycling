@@ -24,4 +24,5 @@ Thumbs.db
 # Local planning notes and AI assistant instructions (not part of the submission).
 # docs/* (not docs/) so single files can be re-included later, e.g. !docs/integration-tests.md
 docs/*
+!docs/integration-tests.md
 CLAUDE.md
