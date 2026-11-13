@@ -61,6 +61,13 @@ class RewardRuleTest {
         assertThrows(IllegalArgumentException.class, () -> rule.calculatePoints(Material.PAPER, NEGATIVE_KG));
     }
 
+    @Test
+    void calculatePoints_campaignTotalAboveIntRange_throwsIllegalArgument() {
+        RewardRule hugeCampaign = new CampaignBonusRule(new PerKgRule(), Material.PLASTIC, Integer.MAX_VALUE);
+
+        assertThrows(IllegalArgumentException.class, () -> hugeCampaign.calculatePoints(Material.PLASTIC, 1.0));
+    }
+
     @ParameterizedTest
     @ValueSource(ints = {0, -1})
     void constructor_campaignMultiplierBelowOne_throwsIllegalArgument(int multiplier) {

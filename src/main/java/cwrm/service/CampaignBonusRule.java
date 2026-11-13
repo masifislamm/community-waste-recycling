@@ -13,6 +13,7 @@ public class CampaignBonusRule implements RewardRule {
     private static final String NAME_FORMAT = "%s + %dx %s campaign";
     private static final String MISSING_ARGUMENT = "A campaign needs a base rule and a target material.";
     private static final String INVALID_MULTIPLIER = "The campaign multiplier must be at least 1.";
+    private static final String TOO_MANY_POINTS = "The weight is too large to calculate campaign points.";
 
     private final RewardRule base;
     private final Material target;
@@ -43,7 +44,18 @@ public class CampaignBonusRule implements RewardRule {
     public int calculatePoints(Material material, double kg) {
         WeightCheck.requireNotNegative(kg);
         int basePoints = base.calculatePoints(material, kg);
-        return material == target ? basePoints * multiplier : basePoints;
+        return material == target ? applyBonus(basePoints) : basePoints;
+    }
+
+    /**
+     * Multiplies the base points, refusing results that do not fit in an {@code int}
+     * instead of letting them silently wrap around to a negative number.
+     */
+    private int applyBonus(int basePoints) {
+        if (basePoints > Integer.MAX_VALUE / multiplier) {
+            throw new IllegalArgumentException(TOO_MANY_POINTS);
+        }
+        return basePoints * multiplier;
     }
 
     @Override
