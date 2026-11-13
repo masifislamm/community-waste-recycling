@@ -122,9 +122,14 @@ public class NominatimAddressLookup {
      */
     public record LookupResult(Address address, String message) {
 
-        /** @return {@code true} if an address can be shown */
+        /** @return {@code true} if an address can be shown, either new or the last known one */
         public boolean hasAddress() {
             return address != null;
+        }
+
+        /** @return {@code true} only if the service has just found this address */
+        public boolean found() {
+            return FOUND.equals(message);
         }
     }
 

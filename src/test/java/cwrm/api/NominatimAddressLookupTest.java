@@ -45,6 +45,7 @@ class NominatimAddressLookupTest {
 
         assertAll(
                 () -> assertTrue(result.hasAddress()),
+                () -> assertTrue(result.found()),
                 () -> assertEquals(new Address(DISPLAY_NAME, LATITUDE, LONGITUDE), result.address()),
                 () -> assertEquals(NominatimAddressLookup.FOUND, result.message()));
     }
@@ -81,6 +82,7 @@ class NominatimAddressLookupTest {
         LookupResult result = lookup.lookup(QUERY);
 
         assertEquals(found, result.address());
+        assertFalse(result.found());
         assertEquals(NominatimAddressLookup.SERVICE_PROBLEM + NominatimAddressLookup.LAST_KNOWN_NOTE,
                 result.message());
     }
