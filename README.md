@@ -25,18 +25,20 @@ Recycling participation and collection coordination in Kuala Lumpur can be impro
 |---|---|
 | Pickup booking | Residents book a pickup (mandatory: id, resident, address, material, date; optional: weight, notes, time slot) |
 | Collection logging | Collectors complete a pickup; the system records a `CollectionLog` entry. A request can only be completed or cancelled once |
-| Rewards | Points are calculated per material or campaign using swappable reward rules, and credited to the resident |
+| Rewards | Points are calculated per material or campaign using swappable reward rules, and credited to the resident. A live estimate shows the points before booking, and residents can redeem points |
 | Address lookup | Addresses are geocoded through the Nominatim API, with friendly error messages and a last-known-result fallback |
-| Administration | Completion rate, average turnaround and kilograms collected per material; switch the reward rule at runtime |
+| Administration | Completion rate, average time to collect, kilograms per material and pickups per status as figure cards and bar charts; switch the reward rule at runtime |
+| Ease of use | Modern FlatLaf look, a Home screen that explains the app in three steps, numbered form sections with hints, a date list instead of typed dates, coloured status badges, and tables that can be sorted and searched |
 
 **Screens (one tab per user role)**
 
 | Tab | User | What it shows |
 |---|---|---|
-| Book pickup (`BookingPanel`) | Resident | Booking form with **Find address** (live lookup) and **Book pickup**; table of all pickups |
-| Collector (`CollectorPanel`) | Collector | Pending pickups; complete (with actual weight) or cancel the selected one; collection log |
-| My rewards (`RewardsPanel`) | Resident | Points balance, current reward rule and the status of the resident's pickups |
-| Administrator (`AdminPanel`) | Municipal administrator, recycling partner | Pilot statistics, kilograms per material and the reward-rule switch |
+| Home (`HomePanel`) | Everyone | What CWRM does in three steps, live pilot figures, recent activity, shortcuts to booking and rewards |
+| Book a pickup (`BookingPanel`) | Resident | Three-step booking form with **Find address** (live lookup), material hints, a points estimate and **Book pickup**; searchable table of all pickups |
+| My rewards (`RewardsPanel`) | Resident | Points balance, kilograms recycled, points earned per pickup, and **Redeem points** |
+| Collector (`CollectorPanel`) | Collector | Pickups waiting for collection with a details card; complete (weight pre-filled from the estimate) or cancel after confirming; collection log |
+| Administrator (`AdminPanel`) | Municipal administrator, recycling partner | Figure cards, bar charts of kilograms per material and pickups per status, and the reward-rule switch |
 
 ## 3. Design overview
 
@@ -69,7 +71,7 @@ AdminPanel        ─┘     (returns Outcome)     NominatimAddressLookup
 ## 4. Technology stack
 
 - Java **21**
-- Java Swing (GUI)
+- Java Swing (GUI) with the **FlatLaf** light theme (Apache-2.0); the charts are drawn with plain Java 2D
 - `java.net.http.HttpClient` (HTTP) and **Jackson** (JSON parsing)
 - JUnit 5 (unit tests), JaCoCo (coverage, build fails below 75% line coverage)
 - Checkstyle (clean-code rules, build fails on any violation)
@@ -95,14 +97,15 @@ AdminPanel        ─┘     (returns Outcome)     NominatimAddressLookup
 mvn -B package
 java -jar target/cwrm.jar
 ```
-`mvn package` runs the unit tests, then builds `target/cwrm.jar`, a single "fat" JAR that already contains Jackson. It can be copied and run on any computer with Java 21 or later.
+`mvn package` runs the unit tests, then builds `target/cwrm.jar`, a single "fat" JAR that already contains Jackson and FlatLaf. It can be copied and run on any computer with Java 21 or later.
 
 ### Using the app
-The app starts with fictional seed data: three residents and two collectors. All data is kept in memory and is reset when the app closes.
-1. **Book pickup:** choose a resident, type an address (optionally click **Find address** to check it), choose a material and a date (`yyyy-MM-dd`), then click **Book pickup**.
-2. **Collector:** choose a collector, select a pending pickup, enter the weight collected and click **Complete selected pickup** (or **Cancel selected pickup**).
-3. **My rewards:** choose a resident to see their points and pickup statuses.
-4. **Administrator:** view the statistics and switch the reward rule.
+The app starts with fictional seed data: three residents, two collectors and seven sample pickups (PU-001 to PU-007: three completed, one cancelled, three pending), so every screen has something to show. The first new booking is PU-008. All data is kept in memory and is reset when the app closes.
+1. **Home:** read the three steps and the pilot figures; click **Book a pickup** to start.
+2. **Book a pickup:** choose a resident, type an address (optionally click **Find address** to check it), choose a material and a pickup day from the list, optionally enter an estimated weight to see the points estimate, then click **Book pickup**.
+3. **Collector:** select a waiting pickup to see its details, check the collector and the weight (pre-filled from the estimate) and click **Complete pickup** (or **Cancel pickup** and confirm).
+4. **My rewards:** choose a resident to see their points, kilograms recycled and points per pickup; enter a number of points and click **Redeem points**.
+5. **Administrator:** view the figures and charts and switch the reward rule.
 
 ### Build and test from source
 ```bash
@@ -133,8 +136,9 @@ src/main/java/cwrm/
   service/             PickupService, RewardService, reward rules, StatisticsService
   api/                 Nominatim address lookup (HttpTransport, Jackson)
   controller/          PickupController, Outcome, BookingForm, StatisticsSummary
-  view/                Swing panels and MainFrame
-  Main.java            entry point and seed data
+  view/                Swing panels, MainFrame and small UI helpers (theme, cards, charts, badges)
+  DemoData.java        fictional seed residents, collectors and sample pickups
+  Main.java            entry point
 src/test/java/cwrm/    JUnit 5 tests (same packages)
 docs/integration-tests.md  integration test cases TC-01 to TC-05
 scripts/gen-appendix-a.py  builds the Appendix A unit-test table

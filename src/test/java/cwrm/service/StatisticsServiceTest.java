@@ -2,18 +2,21 @@ package cwrm.service;
 
 import static cwrm.model.TestData.newResident;
 import static cwrm.model.TestData.validBuilder;
+import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import cwrm.model.Collector;
 import cwrm.model.Material;
 import cwrm.model.PickupRequest;
+import cwrm.model.PickupStatus;
+import cwrm.model.Resident;
 import java.time.Duration;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-/** Tests for {@link StatisticsService}: completion rate, turnaround and kilograms per material. */
+/** Tests for {@link StatisticsService}: completion rate, turnaround, kilograms, statuses and points. */
 class StatisticsServiceTest {
     private static final double FIVE_KG = 5.0;
     private static final double THREE_KG = 3.0;
@@ -32,9 +35,13 @@ class StatisticsServiceTest {
     }
 
     private String book(Material material) {
+        return bookFor(newResident(), material);
+    }
+
+    private String bookFor(Resident resident, Material material) {
         PickupRequest request = validBuilder()
                 .id(pickups.nextRequestId())
-                .resident(newResident())
+                .resident(resident)
                 .material(material)
                 .build();
         pickups.book(request);
@@ -99,5 +106,46 @@ class StatisticsServiceTest {
         pickups.complete(book(Material.PAPER), collector, FIVE_KG);
 
         assertFalse(statistics.averageTurnaround().isNegative());
+    }
+
+    @Test
+    void countByStatus_mixedPickups_countsEachStatus() {
+        pickups.complete(book(Material.PAPER), collector, FIVE_KG);
+        pickups.cancel(book(Material.PAPER));
+        book(Material.PAPER);
+        book(Material.GLASS);
+
+        Map<PickupStatus, Long> counts = statistics.countByStatus();
+
+        assertAll(
+            () -> assertEquals(2L, counts.get(PickupStatus.PENDING)),
+            () -> assertEquals(1L, counts.get(PickupStatus.COMPLETED)),
+            () -> assertEquals(1L, counts.get(PickupStatus.CANCELLED)));
+    }
+
+    @Test
+    void pointsAwarded_twoCompletedPickups_sumsTheirPoints() {
+        pickups.complete(book(Material.PAPER), collector, FIVE_KG);
+        pickups.complete(book(Material.METAL), collector, THREE_KG);
+
+        int flatRatePoints = (int) ((FIVE_KG + THREE_KG) * 2);
+        assertEquals(flatRatePoints, statistics.pointsAwarded());
+    }
+
+    @Test
+    void pointsAwarded_noLogs_returnsZero() {
+        assertEquals(0, statistics.pointsAwarded());
+    }
+
+    @Test
+    void kgRecycledBy_twoResidents_countsOnlyThatResident() {
+        Resident first = new Resident("R-101", "First Resident");
+        Resident second = new Resident("R-102", "Second Resident");
+        pickups.complete(bookFor(first, Material.PAPER), collector, FIVE_KG);
+        pickups.complete(bookFor(first, Material.GLASS), collector, TWO_KG);
+        pickups.complete(bookFor(second, Material.PAPER), collector, THREE_KG);
+        bookFor(first, Material.METAL);
+
+        assertEquals(FIVE_KG + TWO_KG, statistics.kgRecycledBy(first), DELTA);
     }
 }

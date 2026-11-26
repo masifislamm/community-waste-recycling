@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Keeps track of all pickup requests and handles their life cycle:
@@ -145,5 +146,15 @@ public class PickupService {
     /** @return every collection log entry, oldest first; the list cannot be changed */
     public List<CollectionLog> getLogs() {
         return List.copyOf(logs);
+    }
+
+    /**
+     * Finds the collection log written when a pickup was completed.
+     *
+     * @param requestId the pickup's ID
+     * @return the log, or empty if the pickup has not been completed
+     */
+    public Optional<CollectionLog> findLog(String requestId) {
+        return logs.stream().filter(log -> log.requestId().equals(requestId)).findFirst();
     }
 }

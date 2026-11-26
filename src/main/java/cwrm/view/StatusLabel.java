@@ -6,20 +6,19 @@ import javax.swing.BorderFactory;
 import javax.swing.JLabel;
 
 /**
- * The message line at the bottom of each screen. It shows the result of the last
- * action: green for success, red for a problem, grey for information.
+ * The message bar at the bottom of each screen. It shows the result of the last action:
+ * green for success, red for a problem and grey for information, with a coloured stripe
+ * on the left so the message stands out.
  */
 public class StatusLabel extends JLabel {
-    private static final Color SUCCESS_COLOUR = new Color(0x1B5E20);
-    private static final Color PROBLEM_COLOUR = new Color(0xB71C1C);
-    private static final Color INFO_COLOUR = Color.DARK_GRAY;
-    private static final int PADDING = 6;
+    private static final int STRIPE_WIDTH = 4;
+    private static final int PADDING = 8;
     private static final String EMPTY = " ";
 
-    /** Creates an empty status line. */
+    /** Creates an empty message bar. */
     public StatusLabel() {
         super(EMPTY);
-        setBorder(BorderFactory.createEmptyBorder(PADDING, PADDING, PADDING, PADDING));
+        setBorder(BorderFactory.createEmptyBorder(PADDING, PADDING + STRIPE_WIDTH, PADDING, PADDING));
     }
 
     /**
@@ -28,7 +27,11 @@ public class StatusLabel extends JLabel {
      * @param outcome the outcome returned by the controller
      */
     public void showOutcome(Outcome outcome) {
-        showText(outcome.message(), outcome.success() ? SUCCESS_COLOUR : PROBLEM_COLOUR);
+        if (outcome.success()) {
+            showText(outcome.message(), Theme.PRIMARY_DARK, Theme.PRIMARY_LIGHT);
+        } else {
+            showProblem(outcome.message());
+        }
     }
 
     /**
@@ -37,7 +40,7 @@ public class StatusLabel extends JLabel {
      * @param message the message
      */
     public void showInfo(String message) {
-        showText(message, INFO_COLOUR);
+        showText(message, Theme.MUTED, Theme.MUTED_LIGHT);
     }
 
     /**
@@ -46,11 +49,16 @@ public class StatusLabel extends JLabel {
      * @param message the message
      */
     public void showProblem(String message) {
-        showText(message, PROBLEM_COLOUR);
+        showText(message, Theme.PROBLEM, Theme.PROBLEM_LIGHT);
     }
 
-    private void showText(String message, Color colour) {
-        setForeground(colour);
+    private void showText(String message, Color text, Color background) {
+        setOpaque(true);
+        setForeground(text);
+        setBackground(background);
+        setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(0, STRIPE_WIDTH, 0, 0, text),
+                BorderFactory.createEmptyBorder(PADDING, PADDING, PADDING, PADDING)));
         setText(message);
     }
 }

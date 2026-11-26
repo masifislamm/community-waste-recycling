@@ -247,4 +247,98 @@ class PickupControllerTest {
                 () -> assertEquals(List.of(collector), controller.collectors()),
                 () -> assertEquals(List.of(perKg, perMaterial), controller.ruleOptions()));
     }
+
+    @Test
+    void statistics_mixedPickups_reportsTotalsAndCounts() {
+        String completed = bookOne();
+        bookOne();
+        controller.completePickup(completed, collector, FIVE_KG);
+
+        StatisticsSummary summary = controller.statistics();
+
+        assertAll(
+                () -> assertEquals(5.0, summary.totalKg()),
+                () -> assertEquals(2L, summary.totalPickups()),
+                () -> assertEquals(1L, summary.count(PickupStatus.PENDING)),
+                () -> assertEquals(PER_KG_POINTS_FOR_FIVE_KG, summary.pointsAwarded()));
+    }
+
+    @Test
+    void estimatePoints_validWeight_returnsPointsForActiveRule() {
+        Outcome estimate = controller.estimatePoints(Material.PAPER, FIVE_KG);
+
+        assertTrue(estimate.success());
+        assertTrue(estimate.message().contains(PER_KG_POINTS_FOR_FIVE_KG + " points"));
+    }
+
+    @ParameterizedTest
+    @NullAndEmptySource
+    @ValueSource(strings = {"abc", "-2", "5000"})
+    void estimatePoints_missingOrInvalidWeight_returnsFailure(String weightText) {
+        assertFalse(controller.estimatePoints(Material.PAPER, weightText).success());
+    }
+
+    @Test
+    void estimatePoints_noMaterial_returnsFailure() {
+        assertFalse(controller.estimatePoints(null, FIVE_KG).success());
+    }
+
+    @Test
+    void redeemPoints_enoughPoints_reducesBalance() {
+        controller.completePickup(bookOne(), collector, FIVE_KG);
+
+        Outcome outcome = controller.redeemPoints(resident, "4");
+
+        assertAll(
+                () -> assertTrue(outcome.success()),
+                () -> assertEquals(PER_KG_POINTS_FOR_FIVE_KG - 4, resident.getAccount().getBalance()));
+    }
+
+    @ParameterizedTest
+    @NullAndEmptySource
+    @ValueSource(strings = {"abc", "0", "-5", "2.5"})
+    void redeemPoints_invalidText_returnsFailure(String pointsText) {
+        assertFalse(controller.redeemPoints(resident, pointsText).success());
+    }
+
+    @Test
+    void redeemPoints_moreThanBalance_returnsFailureAndKeepsBalance() {
+        controller.completePickup(bookOne(), collector, FIVE_KG);
+
+        assertFalse(controller.redeemPoints(resident, "11").success());
+        assertEquals(PER_KG_POINTS_FOR_FIVE_KG, resident.getAccount().getBalance());
+    }
+
+    @Test
+    void redeemPoints_noResident_returnsFailure() {
+        assertFalse(controller.redeemPoints(null, "1").success());
+    }
+
+    @Test
+    void recentPickups_sevenBooked_returnsFiveNewestFirst() {
+        for (int booking = 0; booking < 7; booking++) {
+            bookOne();
+        }
+
+        List<PickupRequest> recent = controller.recentPickups();
+
+        assertEquals(5, recent.size());
+        assertEquals("PU-007", recent.get(0).getId());
+    }
+
+    @Test
+    void logFor_completedOrUnknownPickup_returnsLogOrEmpty() {
+        String id = bookOne();
+        controller.completePickup(id, collector, FIVE_KG);
+
+        assertEquals(PER_KG_POINTS_FOR_FIVE_KG, controller.logFor(id).orElseThrow().pointsAwarded());
+        assertTrue(controller.logFor("PU-999").isEmpty());
+    }
+
+    @Test
+    void kgRecycledBy_completedPickup_returnsCollectedWeight() {
+        controller.completePickup(bookOne(), collector, FIVE_KG);
+
+        assertEquals(5.0, controller.kgRecycledBy(resident));
+    }
 }
