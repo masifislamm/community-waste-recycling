@@ -19,6 +19,7 @@
 
         <!-- Dependency versions -->
         <jackson.version>2.22.4</jackson.version>
+        <flatlaf.version>3.8</flatlaf.version>
         <junit.version>5.12.2</junit.version>
 
         <!-- Plugin versions -->
@@ -57,6 +58,12 @@
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
             <version>${jackson.version}</version>
+        </dependency>
+        <!-- Modern flat look for the Swing screens (Apache-2.0 licence) -->
+        <dependency>
+            <groupId>com.formdev</groupId>
+            <artifactId>flatlaf</artifactId>
+            <version>${flatlaf.version}</version>
         </dependency>
 
         <dependency>
@@ -205,6 +212,12 @@
                             <transformers>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                                     <mainClass>${main.class}</mainClass>
+                                    <manifestEntries>
+                                        <!-- FlatLaf and Jackson contain Java-version-specific classes -->
+                                        <Multi-Release>true</Multi-Release>
+                                        <!-- Lets FlatLaf load its small native window helper without a console warning (Java 22+) -->
+                                        <Enable-Native-Access>ALL-UNNAMED</Enable-Native-Access>
+                                    </manifestEntries>
                                 </transformer>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ApacheLicenseResourceTransformer"/>
