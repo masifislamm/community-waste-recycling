@@ -5,6 +5,7 @@ import cwrm.api.NominatimAddressLookup.LookupResult;
 import cwrm.model.Address;
 import cwrm.model.CollectionLog;
 import cwrm.model.Collector;
+import cwrm.model.Material;
 import cwrm.model.PickupRequest;
 import cwrm.model.PickupStatus;
 import cwrm.model.Resident;
@@ -14,7 +15,10 @@ import cwrm.service.RewardService;
 import cwrm.service.StatisticsService;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * The controller in MVC: the only class the Swing views talk to.
@@ -27,6 +31,7 @@ import java.util.List;
 public class PickupController {
     private static final double MAX_WEIGHT_KG = 1000.0;
     private static final double UNKNOWN_COORDINATE = 0.0;
+    private static final int RECENT_LIMIT = 5;
 
     private static final String CHOOSE_RESIDENT = "Please choose a resident.";
     private static final String ENTER_ADDRESS = "Please enter an address.";
@@ -43,6 +48,12 @@ public class PickupController {
     private static final String COMPLETED = "Pickup %s completed. %d points credited to %s.";
     private static final String CANCELLED = "Pickup %s cancelled.";
     private static final String RULE_CHANGED = "Reward rule changed to: %s.";
+    private static final String ESTIMATE_NEEDS_WEIGHT = "Enter an estimated weight to see the points you could earn.";
+    private static final String ESTIMATE = "About %d points with the current rule (%s).";
+    private static final String ENTER_POINTS = "Please enter the number of points to redeem.";
+    private static final String POINTS_NOT_NUMBER = "Points must be a whole number, for example 50.";
+    private static final String POINTS_NOT_POSITIVE = "Points to redeem must be more than 0.";
+    private static final String REDEEMED = "%d points redeemed for %s. New balance: %d points.";
 
     private final PickupService pickups;
     private final RewardService rewards;
@@ -173,6 +184,45 @@ public class PickupController {
     }
 
     /**
+     * Estimates the points a booking would earn, so residents see the reward before they book.
+     * The final points use the weight the collector records.
+     *
+     * @param material   the chosen material, or {@code null} if none is chosen
+     * @param weightText the estimated weight in kg, as typed; may be blank
+     * @return success with the estimate, or failure explaining what is needed
+     */
+    public Outcome estimatePoints(Material material, String weightText) {
+        if (material == null || isBlank(weightText)) {
+            return Outcome.fail(ESTIMATE_NEEDS_WEIGHT);
+        }
+        try {
+            int points = rewards.pointsFor(material, parseWeight(weightText));
+            return Outcome.ok(String.format(ESTIMATE, points, rewards.getRule().getName()));
+        } catch (IllegalArgumentException invalid) {
+            return Outcome.fail(invalid.getMessage());
+        }
+    }
+
+    /**
+     * Takes points off a resident's balance, for example in exchange for a voucher.
+     *
+     * @param resident   the chosen resident, or {@code null} if none is chosen
+     * @param pointsText the number of points to redeem, as typed
+     * @return success with the new balance, or failure with what to fix
+     */
+    public Outcome redeemPoints(Resident resident, String pointsText) {
+        try {
+            require(resident != null, CHOOSE_RESIDENT);
+            int points = parsePoints(pointsText);
+            resident.getAccount().redeem(points);
+            return Outcome.ok(String.format(REDEEMED, points, resident.getName(),
+                    resident.getAccount().getBalance()));
+        } catch (IllegalArgumentException invalid) {
+            return Outcome.fail(invalid.getMessage());
+        }
+    }
+
+    /**
      * Switches the reward rule used for future completions.
      *
      * @param rule one of {@link #ruleOptions()}, or {@code null} if none is chosen
@@ -228,15 +278,42 @@ public class PickupController {
         return pickups.listFor(resident);
     }
 
+    /** @return the five most recently booked pickups, newest first */
+    public List<PickupRequest> recentPickups() {
+        List<PickupRequest> newestFirst = new ArrayList<>(pickups.listAll());
+        Collections.reverse(newestFirst);
+        return newestFirst.stream().limit(RECENT_LIMIT).toList();
+    }
+
+    /**
+     * Finds the collection log of a completed pickup, to show the weight and points it earned.
+     *
+     * @param pickupId the pickup's ID
+     * @return the log, or empty if the pickup is not completed
+     */
+    public Optional<CollectionLog> logFor(String pickupId) {
+        return pickups.findLog(pickupId);
+    }
+
+    /**
+     * Works out how much one resident has recycled so far.
+     *
+     * @param resident the resident
+     * @return kilograms collected from that resident's completed pickups
+     */
+    public double kgRecycledBy(Resident resident) {
+        return statistics.kgRecycledBy(resident);
+    }
+
     /** @return every collection log entry, oldest first */
     public List<CollectionLog> logs() {
         return pickups.getLogs();
     }
 
-    /** @return completion rate, average turnaround and kilograms per material */
+    /** @return completion rate, average turnaround, kilograms per material, pickups per status and points */
     public StatisticsSummary statistics() {
         return new StatisticsSummary(statistics.completionRate(), statistics.averageTurnaround(),
-                statistics.totalKgByMaterial());
+                statistics.totalKgByMaterial(), statistics.countByStatus(), statistics.pointsAwarded());
     }
 
     private static LocalDate parseDate(String dateText) {
@@ -261,6 +338,18 @@ public class PickupController {
         boolean inRange = Double.isFinite(kg) && kg > 0 && kg <= MAX_WEIGHT_KG;
         require(inRange, String.format(WEIGHT_OUT_OF_RANGE, MAX_WEIGHT_KG));
         return kg;
+    }
+
+    private static int parsePoints(String pointsText) {
+        require(!isBlank(pointsText), ENTER_POINTS);
+        int points;
+        try {
+            points = Integer.parseInt(pointsText.trim());
+        } catch (NumberFormatException notANumber) {
+            throw new IllegalArgumentException(POINTS_NOT_NUMBER);
+        }
+        require(points > 0, POINTS_NOT_POSITIVE);
+        return points;
     }
 
     private static void requireSelection(String pickupId, Collector collector) {
