@@ -5,6 +5,7 @@ import static cwrm.model.TestData.validBuilder;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import cwrm.model.CollectionLog;
@@ -143,5 +144,20 @@ class PickupServiceTest {
         List<CollectionLog> logs = service.getLogs();
 
         assertThrows(UnsupportedOperationException.class, logs::clear);
+    }
+
+    @Test
+    void findLog_completedPickup_returnsItsLog() {
+        PickupRequest request = bookFor(resident);
+        CollectionLog log = service.complete(request.getId(), collector, FIVE_KG);
+
+        assertEquals(log, service.findLog(request.getId()).orElseThrow());
+    }
+
+    @Test
+    void findLog_pendingPickup_returnsEmpty() {
+        PickupRequest request = bookFor(resident);
+
+        assertTrue(service.findLog(request.getId()).isEmpty());
     }
 }

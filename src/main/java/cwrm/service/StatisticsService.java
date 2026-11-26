@@ -4,6 +4,7 @@ import cwrm.model.CollectionLog;
 import cwrm.model.Material;
 import cwrm.model.PickupRequest;
 import cwrm.model.PickupStatus;
+import cwrm.model.Resident;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.EnumMap;
@@ -12,7 +13,8 @@ import java.util.Map;
 
 /**
  * Works out the figures the municipal administrator uses to judge how well the
- * pilot is going: completion rate, average turnaround and kilograms collected per material.
+ * pilot is going: completion rate, average turnaround, kilograms collected per material,
+ * pickups per status and reward points given out.
  *
  * <p>It only reads data from {@link PickupService}; it never changes it.
  */
@@ -83,5 +85,43 @@ public class StatisticsService {
             totals.merge(material, log.actualWeightKg(), Double::sum);
         }
         return totals;
+    }
+
+    /**
+     * Counts the pickups in each status, for example how many are still waiting for a collector.
+     *
+     * @return the number of pickups per status; every status is listed, with 0 if there are none
+     */
+    public Map<PickupStatus, Long> countByStatus() {
+        Map<PickupStatus, Long> counts = new EnumMap<>(PickupStatus.class);
+        for (PickupStatus status : PickupStatus.values()) {
+            counts.put(status, 0L);
+        }
+        for (PickupRequest request : pickups.listAll()) {
+            counts.merge(request.getStatus(), 1L, Long::sum);
+        }
+        return counts;
+    }
+
+    /**
+     * Total reward points credited to residents for completed pickups.
+     *
+     * @return the sum of the points in every collection log; 0 when nothing is completed
+     */
+    public int pointsAwarded() {
+        return pickups.getLogs().stream().mapToInt(CollectionLog::pointsAwarded).sum();
+    }
+
+    /**
+     * Total weight actually collected from one resident's completed pickups.
+     *
+     * @param resident the resident
+     * @return kilograms recycled by that resident; 0 when none of their pickups is completed
+     */
+    public double kgRecycledBy(Resident resident) {
+        return pickups.getLogs().stream()
+                .filter(log -> pickups.find(log.requestId()).getResident().getId().equals(resident.getId()))
+                .mapToDouble(CollectionLog::actualWeightKg)
+                .sum();
     }
 }
