@@ -8,7 +8,7 @@ package cwrm.model;
  * reward rule.
  */
 public enum Material {
-    PAPER("Paper", "Newspapers, cardboard boxes, magazines, office paper", Rates.PAPER),
+    PAPER("Paper", "Newspapers, cardboard, magazines, office paper", Rates.PAPER),
     PLASTIC("Plastic", "Bottles, food containers, clean plastic bags", Rates.PLASTIC),
     GLASS("Glass", "Bottles and jars (no broken window glass)", Rates.GLASS),
     METAL("Metal", "Drink cans, food tins, clean aluminium foil", Rates.METAL),
